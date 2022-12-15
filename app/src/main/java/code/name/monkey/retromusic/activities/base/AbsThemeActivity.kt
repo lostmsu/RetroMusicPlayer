@@ -28,7 +28,6 @@ import code.name.monkey.retromusic.LanguageContextWrapper
 import code.name.monkey.retromusic.R
 import code.name.monkey.retromusic.extensions.*
 import code.name.monkey.retromusic.util.PreferenceUtil
-import code.name.monkey.retromusic.util.maybeShowAnnoyingToasts
 import code.name.monkey.retromusic.util.theme.getNightMode
 import code.name.monkey.retromusic.util.theme.getThemeResValue
 import java.util.*
@@ -48,7 +47,6 @@ abstract class AbsThemeActivity : ATHToolbarActivity(), Runnable {
         if (VersionUtils.hasQ()) {
             window.decorView.isForceDarkAllowed = false
         }
-        maybeShowAnnoyingToasts()
     }
 
     private fun updateTheme() {
