@@ -37,12 +37,13 @@ android {
             shrinkResources true
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            applicationIdSuffix '.lyrics'
             signingConfig releaseSigning
         }
         debug {
             signingConfig releaseSigning
-            applicationIdSuffix '.debug'
-            versionNameSuffix ' DEBUG'
+            applicationIdSuffix '.lyrics.debug'
+            versionNameSuffix ' LYRICS'
         }
     }
     flavorDimensions "version"
