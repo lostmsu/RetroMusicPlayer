@@ -1072,10 +1072,15 @@ class MusicService : MediaBrowserServiceCompat(),
         var title = song.title
         var artist = song.artistName
         val lyrics = getLyrics(song)
-        if (lyrics != null) {
-            val currentLine = lyrics.getLineIndex(songProgressMillis)
-            title = lyrics.getLineAt(currentLine)
-            artist = if (currentLine + 1 < lyrics.linesCount) lyrics.getLineAt(currentLine + 1) else ""
+        if (lyrics != null && lyrics.linesCount > 0) {
+            if (songProgressMillis < lyrics.getLineTime(0)) {
+                title = "$title - $artist"
+                artist = lyrics.getLineAt(0)
+            } else {
+                val currentLine = lyrics.getLineIndex(songProgressMillis)
+                title = lyrics.getLineAt(currentLine)
+                artist = if (currentLine + 1 < lyrics.linesCount) lyrics.getLineAt(currentLine + 1) else ""
+            }
         }
         val metaData = MediaMetadataCompat.Builder()
             .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist)

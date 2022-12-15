@@ -39,6 +39,13 @@ public abstract class AbsSynchronizedLyrics extends Lyrics {
     return lines.size() - 1;
   }
 
+  public int getLineTime(int index) {
+    if (index < 0 || index >= lines.size()) {
+      throw new IllegalArgumentException("Index out of bounds");
+    }
+    return lines.keyAt(index) - offset - AbsSynchronizedLyrics.TIME_OFFSET_MS;
+  }
+
   public int getLinesCount() {
     return lines.size();
   }
