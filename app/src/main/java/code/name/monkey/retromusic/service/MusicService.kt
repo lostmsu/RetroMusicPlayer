@@ -56,6 +56,8 @@ import code.name.monkey.retromusic.glide.RetroGlideExtension.getSongModel
 import code.name.monkey.retromusic.helper.ShuffleHelper.makeShuffleList
 import code.name.monkey.retromusic.model.Song
 import code.name.monkey.retromusic.model.Song.Companion.emptySong
+import code.name.monkey.retromusic.model.lyrics.AbsSynchronizedLyrics
+import code.name.monkey.retromusic.model.lyrics.Lyrics
 import code.name.monkey.retromusic.model.smartplaylist.AbsSmartPlaylist
 import code.name.monkey.retromusic.providers.HistoryStore
 import code.name.monkey.retromusic.providers.MusicPlaybackQueueStore
@@ -65,6 +67,7 @@ import code.name.monkey.retromusic.service.notification.PlayingNotificationClass
 import code.name.monkey.retromusic.service.notification.PlayingNotificationImpl24
 import code.name.monkey.retromusic.service.playback.Playback
 import code.name.monkey.retromusic.service.playback.Playback.PlaybackCallbacks
+import code.name.monkey.retromusic.util.LyricUtil
 import code.name.monkey.retromusic.util.MusicUtil
 import code.name.monkey.retromusic.util.MusicUtil.toggleFavorite
 import code.name.monkey.retromusic.util.PackageValidator
@@ -89,8 +92,12 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers.Default
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.Dispatchers.Main
+import org.jaudiotagger.audio.exceptions.CannotReadException
 import org.koin.java.KoinJavaComponent.get
+import java.io.File
+import java.io.FileNotFoundException
 import java.util.*
+import kotlin.concurrent.timerTask
 
 
 /**
@@ -261,6 +268,8 @@ class MusicService : MediaBrowserServiceCompat(),
     private var wakeLock: WakeLock? = null
     private var notificationManager: NotificationManager? = null
     private var isForeground = false
+    private val timer: Timer = Timer("LyricsMeta", true)
+
     override fun onCreate() {
         super.onCreate()
         val powerManager = getSystemService<PowerManager>()
@@ -305,9 +314,13 @@ class MusicService : MediaBrowserServiceCompat(),
         mPackageValidator = PackageValidator(this, R.xml.allowed_media_browser_callers)
         mMusicProvider.setMusicService(this)
         storage = PersistentStorage.getInstance(this)
+        timer.scheduleAtFixedRate(timerTask {
+            updateLyricsHack(currentSong)
+        }, 0, 50)
     }
 
     override fun onDestroy() {
+        timer.cancel()
         unregisterReceiver(widgetIntentReceiver)
         unregisterReceiver(updateFavoriteReceiver)
         unregisterReceiver(lockScreenReceiver)
@@ -999,6 +1012,54 @@ class MusicService : MediaBrowserServiceCompat(),
         }
     }
 
+
+    var cachedLyrics: AbsSynchronizedLyrics? = null
+    var cachedLyricsSongId = -1L
+    var cachedLine = -1
+
+    fun updateLyricsHack(song: Song) {
+        getLyrics(song)
+
+        if (cachedLyrics == null) {
+            return
+        }
+
+        val currentLine = cachedLyrics!!.getLineIndex(songProgressMillis)
+        if (currentLine != cachedLine) {
+            cachedLine = currentLine
+            updateMediaSessionMetaData {}
+        }
+    }
+
+    fun getLyrics(song: Song): AbsSynchronizedLyrics? {
+        if (cachedLyricsSongId != song.id) {
+            cachedLyrics = getLyricsInternal(song)
+            cachedLyricsSongId = song.id
+            cachedLine = -1
+        }
+        return cachedLyrics
+    }
+
+    fun getLyricsInternal(song: Song): AbsSynchronizedLyrics? {
+        if (song.id == -1L) {
+            return null
+        }
+        return try {
+            val lrcFile: File? = LyricUtil.getSyncedLyricsFile(song)
+            val data: String = LyricUtil.getStringFromLrc(lrcFile)
+            Lyrics.parse(song,
+                data.ifEmpty {
+                    // Get Embedded Lyrics
+                    LyricUtil.getEmbeddedSyncedLyrics(song.data)
+                }
+            ) as? AbsSynchronizedLyrics?
+        } catch (err: FileNotFoundException) {
+            null
+        } catch (e: CannotReadException) {
+            null
+        }
+    }
+
     @SuppressLint("CheckResult")
     fun updateMediaSessionMetaData(onCompletion: () -> Unit) {
         Log.i(TAG, "onResourceReady: ")
@@ -1007,11 +1068,20 @@ class MusicService : MediaBrowserServiceCompat(),
             mediaSession?.setMetadata(null)
             return
         }
+
+        var title = song.title
+        var artist = song.artistName
+        val lyrics = getLyrics(song)
+        if (lyrics != null) {
+            val currentLine = lyrics.getLineIndex(songProgressMillis)
+            title = lyrics.getLineAt(currentLine)
+            artist = if (currentLine + 1 < lyrics.linesCount) lyrics.getLineAt(currentLine + 1) else ""
+        }
         val metaData = MediaMetadataCompat.Builder()
-            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, song.artistName)
+            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist)
             .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, song.albumArtist)
             .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, song.albumName)
-            .putString(MediaMetadataCompat.METADATA_KEY_TITLE, song.title)
+            .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
             .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, song.duration)
             .putLong(
                 MediaMetadataCompat.METADATA_KEY_TRACK_NUMBER,

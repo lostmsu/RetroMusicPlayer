@@ -25,22 +25,32 @@ public abstract class AbsSynchronizedLyrics extends Lyrics {
 
   protected int offset = 0;
 
-  public String getLine(int time) {
+  public int getLineIndex(int time) {
     time += offset + AbsSynchronizedLyrics.TIME_OFFSET_MS;
-
-    int lastLineTime = lines.keyAt(0);
 
     for (int i = 0; i < lines.size(); i++) {
       int lineTime = lines.keyAt(i);
 
-      if (time >= lineTime) {
-        lastLineTime = lineTime;
-      } else {
-        break;
+      if (time < lineTime) {
+        return Math.max(0, i - 1);
       }
     }
 
-    return lines.get(lastLineTime);
+    return lines.size() - 1;
+  }
+
+  public int getLinesCount() {
+    return lines.size();
+  }
+
+  public String getLine(int time) {
+    int index = getLineIndex(time);
+
+    return lines.valueAt(index);
+  }
+
+  public String getLineAt(int index) {
+    return lines.valueAt(index);
   }
 
   @Override
