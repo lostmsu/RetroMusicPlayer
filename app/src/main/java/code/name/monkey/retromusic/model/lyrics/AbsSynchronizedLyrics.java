@@ -32,7 +32,7 @@ public abstract class AbsSynchronizedLyrics extends Lyrics {
       int lineTime = lines.keyAt(i);
 
       if (time < lineTime) {
-        return Math.max(0, i - 1);
+        return i;
       }
     }
 

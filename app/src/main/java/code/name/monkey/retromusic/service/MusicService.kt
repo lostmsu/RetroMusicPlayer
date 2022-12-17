@@ -1079,7 +1079,7 @@ class MusicService : MediaBrowserServiceCompat(),
             } else {
                 val currentLine = lyrics.getLineIndex(songProgressMillis)
                 title = lyrics.getLineAt(currentLine)
-                artist = if (currentLine + 1 < lyrics.linesCount) lyrics.getLineAt(currentLine + 1) else ""
+                artist = if (currentLine + 1 < lyrics.linesCount) lyrics.getLineAt(currentLine + 1) else "$title - $artist"
             }
         }
         val metaData = MediaMetadataCompat.Builder()
